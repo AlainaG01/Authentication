@@ -1,0 +1,69 @@
+﻿@page "/login"
+
+@inject Contexto contexto
+@inject NavigationManager navigationManager
+
+<div class="row">
+    <div class="col-lg-4 offset-lg-4 pt-4 pb-4 border">
+        <EditForm Model="@Model" OnValidSubmit="Authenticate" FormName="LoginForm">
+            <DataAnnotationsValidator />
+            <div class="mb-3 text-center flex-column">
+                <img src="" style="max-height:5rem;" />
+                <h3>LOGIN</h3>
+            </div>
+
+            <div class="mb-3">
+                <label>User Name</label>
+                <InputText @bind-Value="Model.UserName" class="form-control" placeholder="Username"></InputText>
+                <ValidationMessage For="() => Model.UserName" />
+            </div>
+
+            <div class="mb-3">
+                <label>Password</label>
+                <InputText @bind-Value="Model.Password" class="form-control" placeholder="password" type="password"></InputText>
+                <ValidationMessage For="() => Model.Password" />
+            </div>
+
+            <div class="mb-3">
+                <span class="text-danger">@errorMessage</span>
+            </div>
+
+            <div class="mb-3 d-grid gap-2">
+                <button class="btn btn-primary" type="submit">Login</button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public HttpContext? HttpContext{ get; set; }
+
+    [SupplyParameterFromForm]
+    public LoginViewModels Model { get; set; } = new();
+
+    private string? errorMessage;
+
+    private async Task Authenticate()
+    {
+        var userAccount = contexto.UserAccounts
+        .Where(x => x.UserName == Model.UserName).FirstOrDefault();
+
+        if(userAccount is null || userAccount.Password != Model.Password)
+        {
+            errorMessage = "Usuario o password invalido";
+            return;
+        }
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, Model.UserName),
+            new Claim(ClaimTypes.Role, userAccount.Role)
+        };
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+        await HttpContext.SignInAsync(principal);
+        navigationManager.NavigateTo("/");
+    }
+}
